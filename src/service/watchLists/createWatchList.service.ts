@@ -1,11 +1,13 @@
-import { getAuth } from 'firebase-admin/auth';
-import { Timestamp } from 'firebase-admin/firestore';
-import { client } from '../..';
+// eslint-disable-next-line import/no-unresolved
+import { getAuth } from "firebase-admin/auth";
+import { client } from "../..";
+import { tmrev } from "../../models/mongodb";
+import { timestamp } from "../../utils/common";
 
 export type ListData = {
-  title: string;
   description: string;
   public: boolean;
+  title: string;
 };
 
 export const createWatchListService = async (
@@ -15,20 +17,23 @@ export const createWatchListService = async (
   try {
     const user = await getAuth().verifyIdToken(authToken);
 
-    const db = client.db('Reviews').collection('WatchLists');
+    const db = client.db(tmrev.db).collection(tmrev.collection.watchlists);
 
     const newWatchList = {
       ...data,
       movies: [],
-      created_at: Timestamp.now(),
-      updated_at: Timestamp.now(),
-      userId: user.uid
+      created_at: timestamp(),
+      updated_at: timestamp(),
+      userId: user.uid,
     };
 
     const result = await db.insertOne(newWatchList);
 
     return result;
   } catch (err) {
-    throw err;
+    return {
+      success: false,
+      error: err,
+    };
   }
 };

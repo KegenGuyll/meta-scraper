@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { redisClient } from '..';
+/* eslint-disable no-unused-vars */
+import { Request, Response, NextFunction, RequestHandler } from "express";
+import { validationResult } from "express-validator";
 
 type AsyncRequestHandler = (
   req: Request,
@@ -7,27 +8,16 @@ type AsyncRequestHandler = (
   next: NextFunction
 ) => Promise<any>;
 
-export default (handler: AsyncRequestHandler): RequestHandler => {
-  return (req, res, next) => {
-    let key = '';
-
-    if (req.query.search) {
-      key = `${req.route.path}'/${req.query.search}'`;
-    } else if (req.params.uuid) {
-      key = `${req.route.path}'/${req.params.uuid}'`;
-    } else {
-      key = req.route.path;
+export default (handler: AsyncRequestHandler): RequestHandler =>
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (errors.isEmpty()) {
+      return handler(req, res, next).catch(next);
     }
+    const extractedErrors: { [x: string]: any }[] = [];
+    errors.array().map((err) => extractedErrors.push({ [err.param]: err.msg }));
 
-    redisClient.get(key, (error, data) => {
-      if (error) res.status(500).send(error);
-      if (data !== null) {
-        console.log('pulled cache');
-        res.status(200).send(JSON.parse(data));
-      } else {
-        console.log('grabbing fresh');
-        return handler(req, res, next).catch(next);
-      }
+    return res.status(422).json({
+      errors: extractedErrors,
     });
   };
-};
